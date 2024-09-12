@@ -1,6 +1,6 @@
 import { createContext, useCallback, useEffect, useRef, useState } from 'react';
 import SlidingDoors from './SlidingDoors';
-import { beforeRelationshipEvents } from './assets/events';
+// import { beforeRelationshipEvents } from './assets/events';
 import Dots from './Dots';
 
 type MessageContextProps = {

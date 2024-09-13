@@ -1,32 +1,44 @@
-import { createContext, useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import SlidingDoors from './SlidingDoors';
-// import { beforeRelationshipEvents } from './assets/events';
 import Dots from './Dots';
+import { motion } from 'framer-motion';
 
-type MessageContextProps = {
-  message: string;
-  setMessage: React.Dispatch<React.SetStateAction<string>>;
+const beforeRelationshipEvents = [
+  { type: 'text', value: '안녕하세요' },
+  { type: 'text', value: '반가워요' },
+  { type: 'text', value: '상암, 커피와 함께 이러쿵저러쿵' },
+  { type: 'text', value: '일산, 호수공원과 피자' },
+  { type: 'text', value: '강남, 위스키 시음 후 횡설수설' },
+  { type: 'text', value: '종묘, 막걸리 한 잔에 건네는 위로' },
+  { type: 'text', value: '종로, 끝내주는 노가리 그리고 생맥주' },
+  { type: 'text', value: '망원, 장화 신은 고양이에서의 만찬' },
+];
+
+const statusMessages = {
+  configure: 'configuring relationship...',
+  established: 'relationship established',
 };
 
-export const MessageContext = createContext<MessageContextProps>({
-  message: '',
-  setMessage: () => {},
-});
-
-const progressTo0 = -100;
-const progressOnEachClick = 20;
+const progressComplete = 100;
+const progressOnEachClick = beforeRelationshipEvents.length;
+const autoProgressDecrease = 1;
+const autoProgressDecreaseInterval = 100;
 const days = 1000;
+const countInterval = 50;
 
 function App() {
   const doorRef = useRef<HTMLDivElement>(null);
-  const [message, setMessage] = useState('');
+  const [relationshipMessage, setRelationshipMessage] = useState('');
+  const [statusMessage, setStatusMessage] = useState('');
   const [count, setCount] = useState(0);
   const [coordinates, setCoordinates] = useState<[number, number][]>([]);
-  const [progress, setProgress] = useState(progressTo0);
+  const [progress, setProgress] = useState(0);
   const isDoorOpened = progress >= 0;
-  const increaseProgressBefore0 = useCallback(() => {
-    setProgress((prev) => Math.min(prev + progressOnEachClick, 0));
-  }, []);
+  const increaseProgressUntilComplete = useCallback(() => {
+    setProgress((prev) => Math.min(prev + progressOnEachClick, progressComplete));
+    setRelationshipMessage(beforeRelationshipEvents[Math.floor(progress / 10)].value);
+    console.log('progress', progress, beforeRelationshipEvents[Math.floor(progress / 10)].value);
+  }, [progress]);
 
   useEffect(() => {
     if (!doorRef.current) return;
@@ -40,29 +52,58 @@ function App() {
   }, [isDoorOpened]);
 
   useEffect(() => {
-    if (progress < progressTo0) return;
+    if (progress < 0) return;
+
+    setStatusMessage(
+      progress < progressComplete ? statusMessages.configure : statusMessages.established,
+    );
 
     const interval =
-      progress < 0
-        ? setInterval(() => setProgress((prev) => Math.max(progressTo0, prev - 1)), 100)
-        : setInterval(() => setCount((cnt) => Math.min(cnt + 1, days)), 20);
+      progress < progressComplete
+        ? setInterval(
+            () => setProgress((prev) => Math.max(0, prev - autoProgressDecrease)),
+            autoProgressDecreaseInterval,
+          )
+        : setInterval(() => setCount((cnt) => Math.min(cnt + 1, days)), countInterval);
 
     return () => clearInterval(interval);
   }, [progress]);
 
   return (
-    <MessageContext.Provider value={{ message, setMessage }}>
-      <h3 className='z-10 absolute w-full top-40 text-4xl text-white/80 text-center'>{count}</h3>
-      <div className='relative w-screen h-screen flex items-center justify-center bg-gray-900'>
+    <main>
+      {!count ? (
+        <motion.h3
+          key={relationshipMessage}
+          initial={{ opacity: 0.4 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0.4 }}
+          transition={{ duration: 1 }}
+          className='z-10 absolute top-40 w-full text-2xl text-center text-white/80'
+        >
+          {relationshipMessage}
+        </motion.h3>
+      ) : (
+        <h3 className='z-10 absolute top-40 left-1/2 px-2 py-1 -translate-x-16 rounded text-2xl text-center text-white/80 bg-white/20'>
+          Day {count}
+        </h3>
+      )}
+      <div className='relative w-screen h-screen flex flex-col items-center justify-center bg-[radial-gradient(circle_at_center,rgba(0,0,0,0.7),rgba(0,0,0,0.9))]'>
         <SlidingDoors
           ref={doorRef}
-          className='z-10 shadow-white/30'
-          openPercentage={progress + 100}
-          onClick={increaseProgressBefore0}
+          className='z-10'
+          openPercentage={progress}
+          onClick={increaseProgressUntilComplete}
         />
-        <Dots className='w-full h-full' coordinates={coordinates.slice(0, count)} />
+        <Dots
+          className='w-full h-full'
+          coordinates={coordinates.slice(0, count)}
+          interval={countInterval / 1000}
+        />
       </div>
-    </MessageContext.Provider>
+      <p className='z-10 absolute bottom-40 w-full mt-4 text-white/60 text-center'>
+        {statusMessage}
+      </p>
+    </main>
   );
 }
 
